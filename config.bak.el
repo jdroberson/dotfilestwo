@@ -76,6 +76,7 @@
 ;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
 ;; they are implemented.
 
+
 (setq default-directory "~/")
 
 (custom-set-variables
@@ -173,57 +174,64 @@
 
 ;;
 ;;
-;; Tree Sitter
-;;
-;;
-(with-eval-after-load 'tree-sitter-langs
-  (tree-sitter-require 'tsx)
-  (add-to-list 'tree-sitter-major-mode-language-alist '(typescript-mode . tsx))
-  (tree-sitter-require 'json)
-  (add-to-list 'tree-sitter-major-mode-language-alist '(bbjson-mode . json)))
-
-(require 'tree-sitter)
-(require 'tree-sitter-langs)
-
-;;
-;;
 ;; TS/JS
 ;;
 ;;
-;;
-
-(use-package typescript-mode)
-
-(defun ts-setup ()
+(defun setup-tide-mode ()
+  (interactive)
+  (tide-setup)
+  (flycheck-mode +1)
+  (setq flycheck-check-syntax-automatically '(save mode-enabled))
   (eldoc-mode +1)
+  (tide-hl-identifier-mode +1)
+  (company-mode +1)
+  )
 
-  (setq flycheck-check-syntax-automatically '(mode-enabled save))
-  (setq flycheck-javascript-eslint-executable "eslint_d")
-  (require 'lsp-diagnostics)
-  (lsp-diagnostics-flycheck-enable)
-  (flycheck-add-next-checker 'javascript-eslint 'lsp)
+;; aligns annotation to the right hand side
+(setq company-tooltip-align-annotations t)
 
-  ;; (add-hook 'after-save-hook #'eslint-fix nil t)
-  (general-define-key
-   :states 'normal
-   :keymaps 'local
-   :override t
+;; formats the buffer before saving
+(add-hook 'before-save-hook 'tide-format-before-save)
 
-   "s-F" #'eslint-fix nil t))
+(add-hook 'typescript-mode-hook #'setup-tide-mode)
 
-;; Taken from reddit user 'orzechod' (https://github.com/orzechowskid/dotfiles/blob/master/init.el#L166)
-(add-hook
-   'typescript-mode-hook
-   (lambda ()
-     (lsp)
-     (tree-sitter-mode)
-     (tree-sitter-hl-mode)
-     (tsi-typescript-mode)
-     (eslintd-fix-mode)
-     (ts-setup)))
+;; TSX
+(require 'web-mode)
+(add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))
+(add-hook 'web-mode-hook
+          (lambda ()
+            (when (string-equal "tsx" (file-name-extension buffer-file-name))
+              (setup-tide-mode))))
+;; enable typescript-tslint checker
+(flycheck-add-mode 'typescript-tslint 'web-mode)
 
-(push '("\\.js[x]?\\'" . typescript-mode) auto-mode-alist)
-(push '("\\.ts[x]?\\'" . typescript-mode) auto-mode-alist)
+;; JS
+(add-hook 'js2-mode-hook #'setup-tide-mode)
+;; configure javascript-tide checker to run after your default javascript checker
+;; (flycheck-add-next-checker 'javascript-eslint 'javascript-tide 'append)
+
+;; JSX
+(add-to-list 'auto-mode-alist '("\\.jsx\\'" . web-mode))
+(add-hook 'web-mode-hook
+          (lambda ()
+            (when (string-equal "jsx" (file-name-extension buffer-file-name))
+              (setup-tide-mode))))
+;; configure jsx-tide checker to run after your default jsx checker
+(flycheck-add-mode 'javascript-eslint 'web-mode)
+;; (flycheck-add-next-checker 'jsx-tide 'append)
+
+(use-package tide
+  :ensure t
+  :after (typescript-mode company flycheck)
+  :hook ((typescript-mode . tide-setup)
+         (typescript-mode . tide-hl-identifier-mode)
+         (before-save . tide-format-before-save))
+  :general
+  (:states 'normal
+   ;; "g d" 'tide-jump-to-definition
+   ;; "g b" 'tide-jump-back
+   ;; "C-, u" 'tide-references
+   ))
 
 ;;
 ;;

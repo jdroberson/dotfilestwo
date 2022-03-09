@@ -59,3 +59,8 @@
 ;; Tree-Sitter
 (package! tree-sitter)
 (package! tree-sitter-langs)
+;; tsi-mode from reddit user 'orzechod' (https://old.reddit.com/r/emacs/comments/sbxjer/really_sick_of_the_shoddy_jsxtsx_handlingwould/hu2zjdg/)
+(package! tsi
+  :recipe
+  (:host github
+   :repo "orzechowskid/tsi.el"))
