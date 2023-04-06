@@ -76,14 +76,18 @@
 ;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
 ;; they are implemented.
 
-
 (setq default-directory "~/")
 
 (custom-set-variables
  '(create-lockfiles nil)
+ '(undo-limit 80000000)
  )
 
+(display-time-mode 1)
+
 (use-package general)
+
+(global-evil-surround-mode 1)
 
 (use-package company
   :custom
@@ -141,7 +145,8 @@
 (use-package lsp-mode
   :commands lsp lsp-deferred
   :custom
-  (read-process-output-max (* 1024 1024))
+  (read-process-output-max (* 1024 1024 5))
+  (lsp-clients-typescript-server-args '("--stdio" "--tsserver-log-file" "$HOME/.tsserverlogs"))
   :general
   (:states 'normal
    "C-, x" 'lsp-execute-code-action
@@ -174,64 +179,73 @@
 
 ;;
 ;;
+;; Tree Sitter
+;;
+;;
+(with-eval-after-load 'tree-sitter-langs
+  (tree-sitter-require 'tsx)
+  (add-to-list 'tree-sitter-major-mode-language-alist '(typescript-mode . tsx))
+  (tree-sitter-require 'json)
+  (add-to-list 'tree-sitter-major-mode-language-alist '(bbjson-mode . json)))
+
+(require 'tree-sitter)
+(require 'tree-sitter-langs)
+
+;; (use-package! tree-sitter
+;;   :config
+;;   (require 'tree-sitter-langs)
+;;   (global-tree-sitter-mode)
+;;   (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode))
+
+;;
+;;
 ;; TS/JS
 ;;
 ;;
-(defun setup-tide-mode ()
-  (interactive)
-  (tide-setup)
-  (flycheck-mode +1)
-  (setq flycheck-check-syntax-automatically '(save mode-enabled))
+;;
+
+;; (use-package typescript-mode
+;;   :mode "\\.[tj]sx?"
+;;   :hook (typescript-mode . lsp)
+;;   :hook (typescript-mode . eslintd-fix-mode)
+;;   :hook (typescript-mode . tsi-typescript-mode)
+;;   :config (ts-setup)
+;;   :custom (typescript-indent-level 2))
+
+(defun ts-setup ()
   (eldoc-mode +1)
-  (tide-hl-identifier-mode +1)
-  (company-mode +1)
-  )
 
-;; aligns annotation to the right hand side
-(setq company-tooltip-align-annotations t)
+  (setq flycheck-check-syntax-automatically '(mode-enabled save))
+  (setq flycheck-javascript-eslint-executable "eslint_d")
+  (setq flycheck-checker 'javascript-eslint)
+  (require 'lsp-diagnostics)
+  (lsp-diagnostics-flycheck-enable)
 
-;; formats the buffer before saving
-(add-hook 'before-save-hook 'tide-format-before-save)
+  ;; (add-hook 'after-save-hook #'eslint-fix nil t)
+  (general-define-key
+   :states 'normal
+   :keymaps 'local
+   :override t
 
-(add-hook 'typescript-mode-hook #'setup-tide-mode)
+   "s-F" #'eslint-fix nil t))
 
-;; TSX
-(require 'web-mode)
-(add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))
-(add-hook 'web-mode-hook
-          (lambda ()
-            (when (string-equal "tsx" (file-name-extension buffer-file-name))
-              (setup-tide-mode))))
-;; enable typescript-tslint checker
-(flycheck-add-mode 'typescript-tslint 'web-mode)
+;; Taken from reddit user 'orzechod' (https://github.com/orzechowskid/dotfiles/blob/master/init.el#L166)
+(add-hook
+   'typescript-mode-hook
+   (lambda ()
+     (lsp)
+     (tree-sitter-mode)
+     (tree-sitter-hl-mode)
+     (tsi-typescript-mode)
+     (eslintd-fix-mode)
+     (ts-setup)))
 
-;; JS
-(add-hook 'js2-mode-hook #'setup-tide-mode)
-;; configure javascript-tide checker to run after your default javascript checker
-;; (flycheck-add-next-checker 'javascript-eslint 'javascript-tide 'append)
+(push '("\\.js[x]?\\'" . typescript-mode) auto-mode-alist)
+(push '("\\.ts[x]?\\'" . typescript-mode) auto-mode-alist)
 
-;; JSX
-(add-to-list 'auto-mode-alist '("\\.jsx\\'" . web-mode))
-(add-hook 'web-mode-hook
-          (lambda ()
-            (when (string-equal "jsx" (file-name-extension buffer-file-name))
-              (setup-tide-mode))))
-;; configure jsx-tide checker to run after your default jsx checker
-(flycheck-add-mode 'javascript-eslint 'web-mode)
-;; (flycheck-add-next-checker 'jsx-tide 'append)
-
-(use-package tide
-  :ensure t
-  :after (typescript-mode company flycheck)
-  :hook ((typescript-mode . tide-setup)
-         (typescript-mode . tide-hl-identifier-mode)
-         (before-save . tide-format-before-save))
-  :general
-  (:states 'normal
-   ;; "g d" 'tide-jump-to-definition
-   ;; "g b" 'tide-jump-back
-   ;; "C-, u" 'tide-references
-   ))
+(use-package prettier
+  :hook
+  (typescript-mode . prettier-mode))
 
 ;;
 ;;
@@ -246,5 +260,7 @@
  '(doom-modeline-major-mode-icon t)
  '(doom-modeline-buffer-encoding nil)
  '(doom-modeline-workspace-name nil)
- '(doom-modeline-buffer-file-name-style 'file-name)
  '(doom-modeline-buffer-encoding nil))
+
+(use-package editorconfig
+  :config (editorconfig-mode 1))

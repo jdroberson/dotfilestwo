@@ -64,3 +64,6 @@
   :recipe
   (:host github
    :repo "orzechowskid/tsi.el"))
+
+;; Python
+(package! exec-path-from-shell)

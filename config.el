@@ -80,9 +80,14 @@
 
 (custom-set-variables
  '(create-lockfiles nil)
+ '(undo-limit 80000000)
  )
 
+(display-time-mode 1)
+
 (use-package general)
+
+(global-evil-surround-mode 1)
 
 (use-package company
   :custom
@@ -140,7 +145,8 @@
 (use-package lsp-mode
   :commands lsp lsp-deferred
   :custom
-  (read-process-output-max (* 1024 1024))
+  (read-process-output-max (* 1024 1024 5))
+  (lsp-clients-typescript-server-args '("--stdio" "--tsserver-log-file" "/Users/jesse.roberson/.tsserverlogs"))
   :general
   (:states 'normal
    "C-, x" 'lsp-execute-code-action
@@ -185,6 +191,12 @@
 (require 'tree-sitter)
 (require 'tree-sitter-langs)
 
+;; (use-package! tree-sitter
+;;   :config
+;;   (require 'tree-sitter-langs)
+;;   (global-tree-sitter-mode)
+;;   (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode))
+
 ;;
 ;;
 ;; TS/JS
@@ -192,15 +204,21 @@
 ;;
 ;;
 
-(use-package typescript-mode)
+;; (use-package typescript-mode
+;;   :mode "\\.[tj]sx?"
+;;   :hook (typescript-mode . lsp)
+;;   :hook (typescript-mode . eslintd-fix-mode)
+;;   :hook (typescript-mode . tsi-typescript-mode)
+;;   :config (ts-setup)
+;;   :custom (typescript-indent-level 2))
 
 (defun ts-setup ()
   (eldoc-mode +1)
 
-  (setq flycheck-check-syntax-automatically '(mode-enabled save))
-  (setq flycheck-javascript-eslint-executable "eslint_d")
   (require 'lsp-diagnostics)
   (lsp-diagnostics-flycheck-enable)
+  (setq flycheck-check-syntax-automatically '(mode-enabled save))
+  (setq flycheck-javascript-eslint-executable "eslint_d")
   (flycheck-add-next-checker 'javascript-eslint 'lsp)
 
   ;; (add-hook 'after-save-hook #'eslint-fix nil t)
@@ -225,6 +243,18 @@
 (push '("\\.js[x]?\\'" . typescript-mode) auto-mode-alist)
 (push '("\\.ts[x]?\\'" . typescript-mode) auto-mode-alist)
 
+(use-package prettier
+  :hook
+  (typescript-mode . prettier-mode))
+
+;;
+;;
+;; Python
+;;
+;;
+(when (memq window-system '(mac ns x))
+  (exec-path-from-shell-initialize))
+
 ;;
 ;;
 ;; Editor Stuff
@@ -238,5 +268,7 @@
  '(doom-modeline-major-mode-icon t)
  '(doom-modeline-buffer-encoding nil)
  '(doom-modeline-workspace-name nil)
- '(doom-modeline-buffer-file-name-style 'file-name)
  '(doom-modeline-buffer-encoding nil))
+
+(use-package editorconfig
+  :config (editorconfig-mode 1))
